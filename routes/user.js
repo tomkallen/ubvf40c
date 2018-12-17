@@ -22,10 +22,9 @@ router.post('/signup', (req, res) => {
 
   const newUser = new User({ username, password })
 
-  bcrypt.genSalt(10, (err, salt) => {
-    if (err) { return res.status(500).json({ error: 'Could not generate new user' }) }
-    bcrypt.hash(newUser.password, salt, (err, hash) => {
-      if (err) { return res.status(500).json({ error: 'Could not generate new user' }) }
+  bcrypt
+    .hash(newUser.password, 10)
+    .then(hash => {
       newUser.password = hash
       newUser
         .save()
@@ -35,5 +34,46 @@ router.post('/signup', (req, res) => {
           res.status(500).json({ error: 'Could not generate new user' })
         })
     })
+    .catch(err => {
+      console.error(err)
+      res.status(500).json({ error: 'Could not generate new user' })
+    })
+})
+
+router.post('/login', (req, res) => {
+  const { errors, isValid } = validateExisitngUser(req.body)
+  if (!isValid) return res.status(400).json(errors)
+
+  const { username, password } = req.body
+
+  User.findOne({ username }).then(user => {
+    if (!user) return res.status(404).json({ user: 'username is not found' })
+
+    bcrypt.compare(password, user.password).then(match => {
+      if (match) {
+        const payload = { id: user.id, username: user.username }
+        jwt.sign(
+          payload,
+          config.passportKey,
+          { expiresIn: 86400 },
+          (err, token) => {
+            if (err) {
+              return res.status(500).json({ error: 'Coul not generate token' })
+            }
+            res.json({ success: true, token: `Bearer: ${token}` })
+          }
+        )
+      } else {
+        return res.status(400).json({ error: 'Password is not right' })
+      }
+    })
   })
 })
+
+router.get('/profile', (req, res) => {
+  passport.authenticate('jwt', { session: false }, (req, res) => {
+    res.json({id: req.user.id, username: req.user.username})
+  })
+})
+
+module.exports = router

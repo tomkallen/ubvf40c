@@ -6,4 +6,4 @@ const UsersAuthSchema = new Schema({
   password: { type: String, required: true },
   creationDate: { type: Date, default: Date.now }
 })
-module.exports = mongoose.model('users_auth', UsersAuthSchema)
+module.exports = mongoose.model('users', UsersAuthSchema)
